@@ -6,8 +6,6 @@ env:
   BUILD_OUTPUT: 'build/Build/Products/Debug'
   itlwm_firmware_path: 'itlwm/firmware'
   itlwmx_firmware_path: 'itlwmx/firmware' 
-  
-  
 jobs:
   build:
     
@@ -44,9 +42,6 @@ jobs:
     - name: "Thin firmware"
       run: |
         cd $itlwm_firmware_path
-        mv -t iwm-9000-34 iwm-8265-34 ../
-        rm -rf ./*
-        mv ../iwm-9000-34 ../iwm-8265-34 -t ./
         rm -rf iwm-7260-16 iwm-3160-17 iwm-3168-29 iwm-7265-17 iwm-8000C-34 iwm-9260-34
         cd -
         # todo:Thin itlwmx's firmware
