@@ -1,24 +1,19 @@
 name: CD
-
 on:
   push:
     branches: master
-
 env:
   BUILD_OUTPUT: 'build/Build/Products/Debug'
-
+  itlwm_firmware_path: 'itlwm/firmware'
+  itlwmx_firmware_path: 'itlwmx/firmware' 
 jobs:
-
   build:
     
     runs-on: macos-latest
-
     steps:
-
     - uses: actions/checkout@v2
       with:
         fetch-depth: '5'
-
     - name: Manage Version
       run: |
         git fetch --prune --unshallow --tags
@@ -33,7 +28,6 @@ jobs:
         else
           echo "::set-env name=OLD_PRE_TAG::$CUR_TAG"
         fi
-
     - name: Generate Prerelease Release Notes
       run: |
         echo '### Disclaimer:' >> ReleaseNotes.md
@@ -42,35 +36,39 @@ jobs:
         echo 'If you discovered an issue and you do not have debugging skills, please check with the [Gitter Chat Room](https://gitter.im/OpenIntelWireless/itlwm) in advance before opening an Issue.' >> ReleaseNotes.md
         echo '### The latest five updates are:' >> ReleaseNotes.md
         git log -"5" --format="- %H %s" | sed '/^$/d' >> ReleaseNotes.md
-
     - name: "Install macOS 10.12 SDK"
       run: |
         curl -L https://github.com/alexey-lysiuk/macos-sdk/releases/download/10.12/MacOSX10.12.tar.bz2 -o /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.tar.bz2 && tar -xjf /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.tar.bz2 -C /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/
-
+    - name: "Thin firmware"
+      run: |
+        cd $itlwm_firmware_path
+        mv -t iwm-9000-34 iwm-8265-34 ../
+        rm -rf ./*
+        mv ../iwm-9000-34 ../iwm-8265-34 -t ./
+        rm -rf iwm-7260-16 iwm-3160-17 iwm-3168-29 iwm-7265-17 iwm-8000C-34 iwm-9260-34
+        cd -
+        # todo:Thin itlwmx's firmware
     - name: Build itlwm
       run: |
         xcodebuild -scheme fw_gen
         xcodebuild -scheme itlwm -configuration Debug -sdk macosx10.12 -derivedDataPath build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO | xcpretty && exit ${PIPESTATUS[0]}
-
     - name: Build itlwmx
       run: |
         xcodebuild -scheme fw_genx
         xcodebuild -scheme itlwmx -configuration Debug -sdk macosx10.12 -derivedDataPath build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO | xcpretty && exit ${PIPESTATUS[0]}
-
     - name: Pack Artifacts
       run: |
         cd $BUILD_OUTPUT
         zip -r itlwm-v${ITLWM_VER}-DEBUG-alpha-${SHORT_SHA}.zip itlwm.kext
         zip -r itlwmx-v${ITLWM_VER}-DEBUG-alpha-${SHORT_SHA}.zip itlwmx.kext
         cd -
-
+        
     - name: Delete Old Prerelease
       uses: dev-drprasad/delete-tag-and-release@v0.1.2
       with:
         tag_name: ${{ env.OLD_PRE_TAG }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Publish GitHub Release
       uses: ncipollo/release-action@v1
       with:
@@ -79,4 +77,3 @@ jobs:
         artifacts: "${{ env.BUILD_OUTPUT }}/*.zip"
         tag: "v${{ env.ITLWM_VER }}-alpha"
         token: ${{ secrets.GITHUB_TOKEN }}
-
